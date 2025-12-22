@@ -238,22 +238,54 @@ function getFormatter(columnType) {
                     moreToLoad = message.results.length >= CHUNK_SIZE
                     scrollOffset = 0
 
+                    // Update schema panel first to get stats
+                    if (message.describe && message.statistics) {
+                        updateSchemaPanel(message.describe, message.statistics);
+                    }
+
                     const columns = [
                         { formatter: "rownum", hozAlign: "right", headerHozAlign: "center", width: 1, frozen: true, resizable: false, },
                         ...message.describe.map(column => {
+                            const stats = message.statistics;
+                            const totalRows = stats?.total_rows || 0;
+                            const nulls = stats?.[column.column_name + '_nulls'] || 0;
+                            const distinct = stats?.[column.column_name + '_distinct'] || 0;
+                            const nullPct = totalRows > 0 ? ((nulls / totalRows) * 100).toFixed(1) : '0.0';
+                            
                             return {
                                 title: column.column_name,
                                 field: column.column_name,
-                                headerTooltip: column.column_type,
+                                headerTooltip: function(e, cell) {
+                                    const tooltip = document.createElement('div');
+                                    tooltip.className = 'column-stats-tooltip';
+                                    tooltip.innerHTML = `
+                                        <div class="tooltip-header">
+                                            <span class="tooltip-icon">📊</span>
+                                            <strong>${escapeHtml(column.column_name)}</strong>
+                                        </div>
+                                        <div class="tooltip-row">
+                                            <span class="tooltip-label">Type:</span>
+                                            <span class="tooltip-value type-badge">${escapeHtml(column.column_type)}</span>
+                                        </div>
+                                        <div class="tooltip-row">
+                                            <span class="tooltip-label">Null Count:</span>
+                                            <span class="tooltip-value">${nulls.toLocaleString()}</span>
+                                        </div>
+                                        <div class="tooltip-row">
+                                            <span class="tooltip-label">Null %:</span>
+                                            <span class="tooltip-value ${nullPct > 50 ? 'high-null' : nullPct > 10 ? 'med-null' : 'low-null'}">${nullPct}%</span>
+                                        </div>
+                                        <div class="tooltip-row">
+                                            <span class="tooltip-label">Distinct Values:</span>
+                                            <span class="tooltip-value distinct-badge">${distinct.toLocaleString()}</span>
+                                        </div>
+                                    `;
+                                    return tooltip;
+                                },
                                 ...getFormatter(column.column_type),
                             }
                         })
                     ];
-
-                    // Update schema panel
-                    if (message.describe && message.statistics) {
-                        updateSchemaPanel(message.describe, message.statistics);
-                    }
 
                     if (table) {
                         table.replaceData(message.results);

@@ -12,6 +12,85 @@ body {
     padding: 10px 12.5%;
 }
 
+/* Column Stats Tooltip */
+.column-stats-tooltip {
+    background: var(--vscode-editorHoverWidget-background, var(--vscode-editorWidget-background));
+    color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-contrastBorder, var(--vscode-focusBorder)));
+    min-width: 220px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.tooltip-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.3)));
+    font-size: 14px;
+    color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+}
+
+.tooltip-icon {
+    font-size: 16px;
+}
+
+.tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 6px 0;
+    gap: 12px;
+}
+
+.tooltip-label {
+    color: var(--vscode-descriptionForeground, var(--vscode-foreground));
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+.tooltip-value {
+    font-weight: 600;
+    text-align: right;
+    color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+}
+
+.type-badge {
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 11px;
+}
+
+.distinct-badge {
+    background: var(--vscode-button-secondaryBackground, var(--vscode-badge-background));
+    color: var(--vscode-button-secondaryForeground, var(--vscode-badge-foreground));
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.high-null {
+    color: var(--vscode-errorForeground, #f48771);
+    font-weight: 700;
+}
+
+.med-null {
+    color: var(--vscode-notificationsWarningIcon-foreground, #cca700);
+    font-weight: 700;
+}
+
+.low-null {
+    color: #86efac;
+    font-weight: 700;
+}
+
 code-input {
     height: auto;
     min-width: 200pt;
