@@ -37,7 +37,7 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
         this._uri = uri;
         this._db = new duckdb.Database(':memory:');
 
-        const config = vscode.workspace.getConfiguration('flat-file-explorer');
+        const config = vscode.workspace.getConfiguration('quack-table');
         let tableName: string = config.get("tableName")!;
         if (config.get("useFileNameAsTableName"))
             tableName = parse(uri.fsPath).name;
@@ -52,7 +52,7 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
         } else {
             // If this error occurs, check that the trigger types in `package.json` are in sync
             // with the extension definition arrays at the top of this file.
-            throw new Error("Unsupported file type. Should not have opened with Flat File Explorer.");
+            throw new Error("Unsupported file type. Should not have opened with Quack Table.");
         }
 
         this.db.exec(query);
@@ -143,7 +143,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
         );
     }
 
-    private static readonly viewType = 'flatFileExplorer.explorer';
+    private static readonly viewType = 'quackTable.explorer';
 
     constructor(
         private readonly _context: vscode.ExtensionContext
@@ -173,7 +173,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
         webviewPanel.webview.onDidReceiveMessage(e => this.onMessage(document, webviewPanel, e));
 
         // Send the autoQuery configuration to the webview
-        const config = vscode.workspace.getConfiguration('flat-file-explorer')
+        const config = vscode.workspace.getConfiguration('quack-table')
         this.postMessage(webviewPanel, {
             type: 'config',
             autoQuery: config.get('autoQuery')!
@@ -187,10 +187,10 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
     private getHtmlForWebview(webview: vscode.Webview, uri: vscode.Uri): string {
         // Local path to script and css for the webview
         const jsUri = webview.asWebviewUri(vscode.Uri.joinPath(
-            this._context.extensionUri, 'media', 'flatFileExplorer.js'));
+            this._context.extensionUri, 'media', 'quackTable.js'));
 
         const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(
-            this._context.extensionUri, 'media', 'flatFileExplorer.css'));
+            this._context.extensionUri, 'media', 'quackTable.css'));
 
         const codeInputJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._context.extensionUri, 'media', 'code-input.min.js'));
@@ -206,7 +206,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 
         const prismCssUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._context.extensionUri, 'media', 'prism.css'));
-        
+
         const luxonJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._context.extensionUri, 'media', 'luxon.min.js'));
 
@@ -223,7 +223,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
         // Use a nonce to whitelist which scripts can be run
         const nonce = getNonce();
 
-        const config = vscode.workspace.getConfiguration('flat-file-explorer')
+        const config = vscode.workspace.getConfiguration('quack-table')
         let tableName: string = config.get("tableName")!;
         if (config.get("useFileNameAsTableName"))
             tableName = parse(uri.fsPath).name
@@ -249,7 +249,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
                 <script nonce="${nonce}">
-                    const CHUNK_SIZE = ${vscode.workspace.getConfiguration('flat-file-explorer').get("chunkSize")}
+                    const CHUNK_SIZE = ${vscode.workspace.getConfiguration('quack-table').get("chunkSize")}
                 </script>
 
                 <script nonce="${nonce}" src="${luxonJsUri}"></script>
@@ -268,7 +268,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
                 <script nonce="${nonce}" src="${jsUri}"></script>
                 <link rel="stylesheet" href="${cssUri}">
 
-                <title>Flat File Explorer</title>
+                <title>Quack Table</title>
             </head>
             <body>
                 <div id="controls">

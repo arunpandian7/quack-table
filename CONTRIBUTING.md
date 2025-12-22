@@ -1,4 +1,4 @@
-# Contributing to "Flat File Viewer"
+# Contributing to "Quack Table"
 
 ## Dev Environment Setup
 

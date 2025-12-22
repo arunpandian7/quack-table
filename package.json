@@ -1,15 +1,15 @@
 {
-    "name": "flat-file-explorer",
-    "displayName": "Flat File Explorer",
+    "name": "quack-table",
+    "displayName": "Quack Table",
     "description": "Explore Parquet and CSV files with DuckDB SQL",
-    "version": "2.1.0",
+    "version": "1.0.0",
     "publisher": "DeflateAwning",
     "icon": "icon.png",
     "private": true,
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/DeflateAwning/flat-file-explorer"
+        "url": "https://github.com/arun/quack-table"
     },
     "engines": {
         "vscode": "^1.74.0"
@@ -21,31 +21,31 @@
     "main": "./out/extension.js",
     "contributes": {
         "configuration": {
-            "title": "Flat File Explorer",
+            "title": "Quack Table",
             "properties": {
-                "flat-file-explorer.defaultQuery": {
+                "quack-table.defaultQuery": {
                     "type": "string",
                     "editPresentation": "multilineText",
                     "default": "SELECT * FROM ${tableName}",
                     "markdownDescription": "Use `${tableName}` to include the table name of the Parquet file."
                 },
-                "flat-file-explorer.tableName": {
+                "quack-table.tableName": {
                     "type": "string",
                     "default": "data",
-                    "markdownDescription": "SQL table name associated with the Parquet file. May be overridden by `#flat-file-explorer.useFileNameAsTableName#`."
+                    "markdownDescription": "SQL table name associated with the Parquet file. May be overridden by `#quack-table.useFileNameAsTableName#`."
                 },
-                "flat-file-explorer.useFileNameAsTableName": {
+                "quack-table.useFileNameAsTableName": {
                     "type": "boolean",
                     "default": false,
-                    "markdownDescription": "Whether the file name is used as the SQL table name of the Parquet file. Overrides `#flat-file-explorer.tableName#`."
+                    "markdownDescription": "Whether the file name is used as the SQL table name of the Parquet file. Overrides `#quack-table.tableName#`."
                 },
-                "flat-file-explorer.chunkSize": {
+                "quack-table.chunkSize": {
                     "type": "integer",
                     "default": 100,
                     "minimum": 30,
                     "markdownDescription": "Number of query results to fetch per request."
                 },
-                "flat-file-explorer.autoQuery": {
+                "quack-table.autoQuery": {
                     "type": "boolean",
                     "default": false,
                     "markdownDescription": "Automatically dispatch queries as the input changes. If false, queries are only dispatched on Ctrl + Enter."
@@ -54,8 +54,8 @@
         },
         "customEditors": [
             {
-                "viewType": "flatFileExplorer.explorer",
-                "displayName": "Flat File Explorer",
+                "viewType": "quackTable.explorer",
+                "displayName": "Quack Table",
                 "selector": [
                     {
                         "filenamePattern": "*.parquet"
