@@ -13,6 +13,7 @@ type IMessage = {
     message?: string;
     results?: duckdb.TableData;
     describe?: duckdb.TableData;
+    statistics?: any;
 } | { type: 'config', autoQuery: boolean };
 
 /**
@@ -111,11 +112,38 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
                             callback({ type: 'query', success: false, message: err.message });
                             return;
                         }
-                        callback({ type: 'query', success: true, results: this.cleanResults(res), describe: descRes });
+
+                        // Compute quick statistics
+                        this.computeStats(sql, descRes, (stats) => {
+                            callback({ type: 'query', success: true, results: this.cleanResults(res), describe: descRes, statistics: stats });
+                        });
                     }
                 );
             }
         );
+    }
+
+    private computeStats(sql: string, describe: duckdb.TableData, callback: (stats: any) => void): void {
+        const cols = describe.map(d => {
+            const col = `"${d.column_name.replace(/"/g, '""')}"`;
+            return `COUNT(*) - COUNT(${col}) AS "${d.column_name}_nulls", COUNT(DISTINCT ${col}) AS "${d.column_name}_distinct"`;
+        }).join(', ');
+
+        const statsQuery = `SELECT COUNT(*) AS total_rows, ${cols} FROM (${sql.replace(';', '')})`;
+
+        this.db.all(statsQuery, (err, result) => {
+            if (err || !result || result.length === 0) {
+                callback(null);
+            } else {
+                // Convert BigInt values to numbers before sending
+                const stats = result[0];
+                const converted: any = {};
+                for (const [key, value] of Object.entries(stats)) {
+                    converted[key] = typeof value === 'bigint' ? Number(value) : value;
+                }
+                callback(converted);
+            }
+        });
     }
 
     fetchMore(sql: string, limit: number, offset: number, callback: (msg: IMessage) => void): void {
@@ -274,15 +302,24 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
                 <div id="controls">
                     <code-input nonce="${nonce}" lang="SQL" value="${defaultQuery}"></code-input>
                 </div>
+                <div id="tabBar" class="tab-bar">
+                    <button class="tab-button active" data-tab="data">📊 Data</button>
+                    <button class="tab-button" data-tab="schema">📋 Schema</button>
                 </div>
-                <div id="resultsContainer">
-                    <div id="results"></div>
-                    <div id="feedback">
-                        <img id="loadingIcon" src="${loadingIconUri}" />
-                        <div id="errorMessage"></div>
+                <div id="tabContent">
+                    <div id="dataTab" class="tab-pane active">
+                        <div id="resultsContainer">
+                            <div id="results"></div>
+                            <div id="feedback">
+                                <img id="loadingIcon" src="${loadingIconUri}" />
+                                <div id="errorMessage"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="schemaTab" class="tab-pane">
+                        <div id="schemaContent" class="schema-content"></div>
                     </div>
                 </div>
-                
             </body>
             
             </html>

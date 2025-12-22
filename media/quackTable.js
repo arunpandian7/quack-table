@@ -227,6 +227,7 @@ function getFormatter(columnType) {
         switch (message.type) {
             case 'config':
                 autoQuery = message.autoQuery;
+                break;
             case 'query':
                 loadingScroll = false;
                 loadingIconElement.style.display = "none";
@@ -248,6 +249,11 @@ function getFormatter(columnType) {
                             }
                         })
                     ];
+
+                    // Update schema panel
+                    if (message.describe && message.statistics) {
+                        updateSchemaPanel(message.describe, message.statistics);
+                    }
 
                     if (table) {
                         table.replaceData(message.results);
@@ -359,6 +365,7 @@ function getFormatter(columnType) {
 
                 }
                 else if (message.message) {
+                    console.error('[QuackTable:Frontend] Query error:', message.message);
                     tableElement.style.display = "none"
                     errorMessageElement.style.display = "block";
                     errorMessageElement.textContent = message.message;
@@ -366,6 +373,7 @@ function getFormatter(columnType) {
                 break;
 
             case 'more':
+                console.log('[QuackTable:Frontend] Processing more results');
                 loadingScroll = false;
                 loadingIconElement.style.display = "none";
                 textAreaElement.disabled = false
@@ -481,6 +489,71 @@ function getFormatter(columnType) {
         textarea.dispatchEvent(new Event("input"));
         textarea.dispatchEvent(new Event("change"));
 
+        // Initialize tabs after DOM is ready
+        const tabButtons = document.querySelectorAll('.tab-button');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabName = button.dataset.tab;
+                
+                // Update buttons
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Update panes
+                document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+                const targetPane = document.getElementById(tabName + 'Tab');
+                if (targetPane) {
+                    targetPane.classList.add('active');
+                }
+            });
+        });
+
     })
+
+    // Update Schema and Stats
+    function updateSchemaPanel(describe, stats) {
+        if (!describe || !stats) {
+            return;
+        }
+        
+        const totalRows = stats.total_rows || 0;
+        
+        // Update Schema Tab with statistics
+        const schemaContent = document.getElementById('schemaContent');
+        if (schemaContent) {
+            let html = `<div class="stats-header">
+                <h3>Table Schema</h3>
+                <p>Total Rows: <strong>${totalRows.toLocaleString()}</strong></p>
+                </div>
+                <table class="schema-table"><thead><tr>
+                <th>Column Name</th><th>Data Type</th><th>Null Count</th><th>Null %</th><th>Distinct Values</th>
+            </tr></thead><tbody>`;
+
+            describe.forEach(col => {
+                const name = col.column_name;
+                const nulls = stats[name + '_nulls'] || 0;
+                const distinct = stats[name + '_distinct'] || 0;
+                const nullPct = totalRows > 0 ? ((nulls / totalRows) * 100).toFixed(1) : '0.0';
+
+                html += `<tr>
+                    <td class="col-name">${escapeHtml(name)}</td>
+                    <td><span class="col-type">${escapeHtml(col.column_type)}</span></td>
+                    <td>${nulls.toLocaleString()}</td>
+                    <td>${nullPct}%</td>
+                    <td>${distinct.toLocaleString()}</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            schemaContent.innerHTML = html;
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
 }());

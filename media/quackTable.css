@@ -9,20 +9,7 @@ body {
 }
 
 #controls {
-    margin-top: 10px;
-    margin-bottom: calc(10px + 10vh);
-    margin-left: 12.5%;
-    margin-right: 12.5%;
-}
-
-#resultsContainer {
-    flex-grow: 1;
-    margin-left: -20px;
-    height: 0;
-}
-
-#results {
-    margin-top: -10vh;
+    padding: 10px 12.5%;
 }
 
 code-input {
@@ -109,10 +96,15 @@ code-input pre {
 }
 
 #feedback {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     align-items: center;
     flex-direction: column;
-    margin-top: -10vh;
+    z-index: 100;
+    pointer-events: none;
 }
 
 
@@ -121,7 +113,8 @@ code-input pre {
     height: 5vh;
     padding: 1vh;
     border-radius: 3.5vh;
-    z-index: 100;
+    display: none;
+    pointer-events: auto;
 }
 
 #errorMessage {
@@ -130,6 +123,8 @@ code-input pre {
     color: var(--vscode-editor-foreground) !important;
     font-weight: bold;
     border-radius: 5px;
+    display: none;
+    pointer-events: auto;
 }
 
 /* Cell Selection Styles */
@@ -225,3 +220,140 @@ code-input pre {
     font-style: italic;
     font-weight: 500;
 }
+/* Schema Panel - Bottom Collapsible */
+/* Tab Bar */
+.tab-bar {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12.5%;
+    background: var(--vscode-editor-background, #1e1e1e);
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+}
+
+.tab-button {
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    color: var(--vscode-foreground, #cccccc);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.tab-button:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+    color: var(--vscode-foreground, #ffffff);
+}
+
+.tab-button.active {
+    color: var(--vscode-focusBorder, #007acc);
+    border-bottom-color: var(--vscode-focusBorder, #007acc);
+}
+
+/* Tab Content */
+#tabContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.tab-pane {
+    display: none;
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+
+.tab-pane.active {
+    display: flex;
+    flex-direction: column;
+}
+
+#resultsContainer {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+#results {
+    flex: 1;
+    overflow: auto;
+}
+
+/* Schema & Stats Content */
+.schema-content,
+.stats-content {
+    padding: 16px 12.5%;
+    overflow-y: auto;
+}
+
+.stats-header h3:first-child {
+    margin-top: 0;
+}
+
+.schema-table,
+.stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    background: var(--vscode-editor-background, #1e1e1e);
+}
+
+.schema-table th,
+.stats-table th {
+    text-align: left;
+    padding: 10px;
+    background: var(--vscode-editorWidget-background, #252526);
+    border-bottom: 2px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.schema-table td,
+.stats-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+}
+
+.schema-table tr:hover,
+.stats-table tr:hover {
+    background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
+}
+
+.col-name {
+    font-family: var(--vscode-editor-font-family, monospace);
+    color: var(--vscode-symbolIcon-variableForeground, #75beff);
+    font-weight: 600;
+}
+
+.col-type {
+    font-family: var(--vscode-editor-font-family, monospace);
+    color: var(--vscode-symbolIcon-keywordForeground, #569cd6);
+    font-size: 11px;
+    padding: 2px 6px;
+    background: var(--vscode-badge-background, #4d4d4d);
+    border-radius: 3px;
+}
+
+.stat-null-high {
+    color: var(--vscode-errorForeground, #f48771);
+    font-weight: 600;
+}
+
+.stat-null-med {
+    color: var(--vscode-notificationsWarningIcon-foreground, #cca700);
+    font-weight: 600;
+}
+
+.stat-null-low {
+    color: var(--vscode-testing-iconPassed, #89d185);
+}
+
