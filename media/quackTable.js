@@ -75,6 +75,20 @@ function getFormatter(columnType) {
     let autoQuery = true;
 
     let textAreaElement = undefined;
+    let columnNames = []; // Store column names for autocomplete
+    let suggestionBox = null;
+    let selectedSuggestionIndex = -1;
+    let currentSuggestions = [];
+    
+    // Common SQL keywords
+    const SQL_KEYWORDS = [
+        'SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'FULL',
+        'ON', 'GROUP', 'BY', 'ORDER', 'HAVING', 'LIMIT', 'OFFSET', 'AS', 'AND', 'OR',
+        'NOT', 'IN', 'LIKE', 'BETWEEN', 'IS', 'NULL', 'DISTINCT', 'COUNT', 'SUM',
+        'AVG', 'MIN', 'MAX', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'CAST', 'INSERT',
+        'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'TABLE', 'VIEW', 'INDEX',
+        'ASC', 'DESC', 'UNION', 'INTERSECT', 'EXCEPT', 'WITH'
+    ];
     let loadingIconElement = undefined;
     let errorMessageElement = undefined;
     let tableElement = undefined;
@@ -232,11 +246,16 @@ function getFormatter(columnType) {
                 loadingScroll = false;
                 loadingIconElement.style.display = "none";
                 textAreaElement.disabled = false;
+                const executeBtn = document.getElementById('executeBtn');
+                if (executeBtn) executeBtn.disabled = false;
 
                 if (message.results) {
                     tableElement.style.display = "block"
                     moreToLoad = message.results.length >= CHUNK_SIZE
                     scrollOffset = 0
+
+                    // Store column names for autocomplete
+                    columnNames = message.describe.map(col => col.column_name);
 
                     // Update schema panel first to get stats
                     if (message.describe && message.statistics) {
@@ -420,6 +439,126 @@ function getFormatter(columnType) {
         }
     });
 
+    // Create suggestion box
+    function createSuggestionBox() {
+        if (suggestionBox) return;
+        
+        suggestionBox = document.createElement('div');
+        suggestionBox.className = 'sql-suggestions';
+        document.body.appendChild(suggestionBox);
+        
+        suggestionBox.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent losing focus
+            const item = e.target.closest('.suggestion-item');
+            if (item) {
+                const index = parseInt(item.dataset.index);
+                applySuggestion(currentSuggestions[index]);
+            }
+        });
+    }
+    
+    function showSuggestions(textarea, suggestions, partial) {
+        if (!suggestions || suggestions.length === 0) {
+            hideSuggestions();
+            return;
+        }
+        
+        createSuggestionBox();
+        currentSuggestions = suggestions;
+        selectedSuggestionIndex = 0;
+        
+        // Position the suggestion box
+        const rect = textarea.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(textarea);
+        const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
+        
+        suggestionBox.style.left = rect.left + 'px';
+        suggestionBox.style.top = (rect.top + lineHeight + 5) + 'px';
+        suggestionBox.style.minWidth = '200px';
+        
+        // Build suggestion list
+        suggestionBox.innerHTML = suggestions.map((sugg, idx) => {
+            const isKeyword = SQL_KEYWORDS.includes(sugg.toUpperCase());
+            const type = isKeyword ? 'keyword' : 'column';
+            const icon = isKeyword ? '🔤' : '📊';
+            return `<div class="suggestion-item ${idx === 0 ? 'selected' : ''}" data-index="${idx}">
+                <span class="suggestion-icon">${icon}</span>
+                <span class="suggestion-text">${escapeHtml(sugg)}</span>
+                <span class="suggestion-type">${type}</span>
+            </div>`;
+        }).join('');
+        
+        suggestionBox.style.display = 'block';
+    }
+    
+    function hideSuggestions() {
+        if (suggestionBox) {
+            suggestionBox.style.display = 'none';
+        }
+        currentSuggestions = [];
+        selectedSuggestionIndex = -1;
+    }
+    
+    function updateSelectedSuggestion(direction) {
+        if (currentSuggestions.length === 0) return;
+        
+        selectedSuggestionIndex += direction;
+        if (selectedSuggestionIndex < 0) selectedSuggestionIndex = currentSuggestions.length - 1;
+        if (selectedSuggestionIndex >= currentSuggestions.length) selectedSuggestionIndex = 0;
+        
+        // Update visual selection
+        const items = suggestionBox.querySelectorAll('.suggestion-item');
+        items.forEach((item, idx) => {
+            item.classList.toggle('selected', idx === selectedSuggestionIndex);
+        });
+        
+        // Scroll into view
+        items[selectedSuggestionIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+    
+    function applySuggestion(suggestion) {
+        if (!textAreaElement || !suggestion) return;
+        
+        const cursorPos = textAreaElement.selectionStart;
+        const textBeforeCursor = textAreaElement.value.substring(0, cursorPos);
+        const textAfterCursor = textAreaElement.value.substring(cursorPos);
+        const lastWord = textBeforeCursor.split(/\s+/).pop();
+        
+        const newValue = textBeforeCursor.substring(0, textBeforeCursor.length - lastWord.length) + 
+                       suggestion + ' ' + textAfterCursor;
+        
+        textAreaElement.value = newValue;
+        const newCursorPos = cursorPos - lastWord.length + suggestion.length + 1;
+        textAreaElement.selectionStart = textAreaElement.selectionEnd = newCursorPos;
+        
+        // Update the code-input display
+        textAreaElement.dispatchEvent(new Event('input'));
+        hideSuggestions();
+    }
+    
+    function getSuggestions(partial) {
+        if (!partial || partial.length < 2) return [];
+        
+        const lowerPartial = partial.toLowerCase();
+        const suggestions = [];
+        
+        // Add matching columns first
+        columnNames.forEach(col => {
+            if (col.toLowerCase().startsWith(lowerPartial)) {
+                suggestions.push(col);
+            }
+        });
+        
+        // Add matching SQL keywords
+        SQL_KEYWORDS.forEach(keyword => {
+            if (keyword.toLowerCase().startsWith(lowerPartial)) {
+                suggestions.push(keyword);
+            }
+        });
+        
+        return suggestions.slice(0, 10); // Limit to 10 suggestions
+    }
+
     // Initialize the text area syntax highlighting
     codeInput.registerTemplate("syntax-highlighted",
         codeInput.templates.prism(
@@ -437,11 +576,73 @@ function getFormatter(columnType) {
             event.preventDefault();
             event.stopPropagation();
             runQuery();
+            return;
+        }
+        
+        // Handle suggestion box navigation
+        if (suggestionBox && suggestionBox.style.display === 'block') {
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                event.stopPropagation();
+                updateSelectedSuggestion(1);
+                return;
+            }
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                event.stopPropagation();
+                updateSelectedSuggestion(-1);
+                return;
+            }
+            if (event.key === 'Enter' || event.key === 'Tab') {
+                event.preventDefault();
+                event.stopPropagation();
+                if (currentSuggestions[selectedSuggestionIndex]) {
+                    applySuggestion(currentSuggestions[selectedSuggestionIndex]);
+                }
+                return;
+            }
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                hideSuggestions();
+                return;
+            }
+        }
+        
+        // Ctrl/Cmd + Space to trigger suggestions
+        if ((event.ctrlKey || event.metaKey) && event.code === 'Space') {
+            event.preventDefault();
+            const textarea = event.target;
+            const cursorPos = textarea.selectionStart;
+            const textBeforeCursor = textarea.value.substring(0, cursorPos);
+            const lastWord = textBeforeCursor.split(/\s+/).pop();
+            
+            const suggestions = getSuggestions(lastWord || '');
+            if (suggestions.length > 0) {
+                showSuggestions(textarea, suggestions, lastWord);
+            }
         }
     }
 
     const onInput = (event) => {
         vscode.setState({ sql: event.target.parentElement.value })
+        
+        // Show suggestions as user types
+        const textarea = event.target;
+        const cursorPos = textarea.selectionStart;
+        const textBeforeCursor = textarea.value.substring(0, cursorPos);
+        const lastWord = textBeforeCursor.split(/\s+/).pop();
+        
+        if (lastWord && lastWord.length >= 2) {
+            const suggestions = getSuggestions(lastWord);
+            if (suggestions.length > 0) {
+                showSuggestions(textarea, suggestions, lastWord);
+            } else {
+                hideSuggestions();
+            }
+        } else {
+            hideSuggestions();
+        }
     }
 
     const onChange = () => {
@@ -462,6 +663,9 @@ function getFormatter(columnType) {
         loadingIconElement.style.display = "block";
         errorMessageElement.style.display = "none";
         textAreaElement.disabled = true;
+        
+        const executeBtn = document.getElementById('executeBtn');
+        if (executeBtn) executeBtn.disabled = true;
 
         if (table) {
             table.replaceData([]);
@@ -475,11 +679,22 @@ function getFormatter(columnType) {
         });
     };
 
-    waitForElements(["textarea", "#results", "#loadingIcon", "#errorMessage"]).then(([textarea, results, loadingIcon, errorMessage]) => {
+    waitForElements([
+        "textarea", 
+        "#results", 
+        "#loadingIcon", 
+        "#errorMessage",
+        "#executeBtn"
+    ]).then(([textarea, results, loadingIcon, errorMessage, executeBtn]) => {
         textAreaElement = textarea;
         loadingIconElement = loadingIcon;
         errorMessageElement = errorMessage;
         tableElement = results;
+
+        // Execute button handler
+        executeBtn.addEventListener('click', () => {
+            runQuery();
+        });
 
         // Register text-area event handlers
         textarea.addEventListener("input", onInput);

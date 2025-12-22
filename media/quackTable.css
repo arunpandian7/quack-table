@@ -12,6 +12,55 @@ body {
     padding: 10px 12.5%;
 }
 
+.sql-input-container {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.execute-button {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: 1px solid var(--vscode-button-border, transparent);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background 0.1s ease;
+    min-height: 36px;
+}
+
+.execute-button:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+
+.execute-button:active {
+    opacity: 0.8;
+}
+
+.execute-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+code-input {
+    flex: 1;
+    background: var(--vscode-editor-background) !important;
+    border: 1px solid var(--vscode-input-border, var(--vscode-editorWidget-border));
+    border-radius: 4px;
+}
+
+code-input textarea {
+    background: transparent !important;
+    color: var(--vscode-editor-foreground) !important;
+}
+
+code-input pre {
+    background: transparent !important;
+}
+
 /* Column Stats Tooltip */
 .column-stats-tooltip {
     background: var(--vscode-editorHoverWidget-background, var(--vscode-editorWidget-background));
@@ -91,6 +140,51 @@ body {
     font-weight: 700;
 }
 
+/* SQL Suggestions Dropdown */
+.sql-suggestions {
+    position: fixed;
+    display: none;
+    background: var(--vscode-editorSuggestWidget-background, var(--vscode-editorWidget-background));
+    border: 1px solid var(--vscode-editorSuggestWidget-border, var(--vscode-widget-border));
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    font-size: 13px;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--vscode-editorSuggestWidget-foreground, var(--vscode-foreground));
+}
+
+.suggestion-item:hover,
+.suggestion-item.selected {
+    background: var(--vscode-editorSuggestWidget-selectedBackground, var(--vscode-list-activeSelectionBackground));
+    color: var(--vscode-editorSuggestWidget-selectedForeground, var(--vscode-list-activeSelectionForeground));
+}
+
+.suggestion-icon {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.suggestion-text {
+    flex: 1;
+    font-family: var(--vscode-editor-font-family, monospace);
+}
+
+.suggestion-type {
+    font-size: 11px;
+    opacity: 0.6;
+    text-transform: uppercase;
+}
+
 code-input {
     height: auto;
     min-width: 200pt;
@@ -99,6 +193,56 @@ code-input {
 code-input pre {
     position: static;
     min-height: 16pt;
+}
+
+/* Override Prism colors with VS Code theme colors */
+code-input code[class*="language-"],
+code-input pre[class*="language-"] {
+    color: var(--vscode-editor-foreground) !important;
+    text-shadow: none !important;
+}
+
+/* SQL Keywords */
+code-input .token.keyword,
+code-input .token.operator {
+    color: var(--vscode-symbolIcon-keywordForeground, #569cd6) !important;
+}
+
+/* SQL Strings */
+code-input .token.string {
+    color: var(--vscode-symbolIcon-stringForeground, #ce9178) !important;
+}
+
+/* SQL Numbers */
+code-input .token.number,
+code-input .token.boolean {
+    color: var(--vscode-symbolIcon-numberForeground, #b5cea8) !important;
+}
+
+/* SQL Comments */
+code-input .token.comment,
+code-input .token.prolog,
+code-input .token.doctype,
+code-input .token.cdata {
+    color: var(--vscode-editorCodeLens-foreground, #6a9955) !important;
+    font-style: italic;
+}
+
+/* SQL Functions */
+code-input .token.function,
+code-input .token.class-name {
+    color: var(--vscode-symbolIcon-functionForeground, #dcdcaa) !important;
+}
+
+/* SQL Punctuation */
+code-input .token.punctuation {
+    color: var(--vscode-editor-foreground) !important;
+    opacity: 0.8;
+}
+
+/* SQL Variables */
+code-input .token.variable {
+    color: var(--vscode-symbolIcon-variableForeground, #9cdcfe) !important;
 }
 
 

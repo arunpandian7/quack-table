@@ -300,7 +300,12 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
             </head>
             <body>
                 <div id="controls">
-                    <code-input nonce="${nonce}" lang="SQL" value="${defaultQuery}"></code-input>
+                    <div class="sql-input-container">
+                        <code-input nonce="${nonce}" lang="sql" value="${defaultQuery}"></code-input>
+                        <button id="executeBtn" class="execute-button" title="Execute Query (Ctrl+Enter)">
+                            ▶ Execute
+                        </button>
+                    </div>
                 </div>
                 <div id="tabBar" class="tab-bar">
                     <button class="tab-button active" data-tab="data">📊 Data</button>
