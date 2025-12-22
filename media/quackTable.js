@@ -78,6 +78,137 @@ function getFormatter(columnType) {
     // Offset to use when fetching additional results
     let scrollOffset = 0;
 
+    // Cell selection state
+    let selectedCells = new Set();
+    let contextMenu = null;
+    let copyNotification = null;
+
+    // Cell selection and copy functionality
+    function createContextMenu() {
+        const menu = document.createElement('div');
+        menu.className = 'cell-context-menu';
+        menu.innerHTML = `
+            <div class="context-menu-item" data-action="copy">
+                <span>Copy Cell Value</span>
+                <span class="shortcut">Ctrl+C</span>
+            </div>
+            <div class="context-menu-item" data-action="copy-all">
+                <span>Copy All Selected</span>
+            </div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="select-row">
+                <span>Select Row</span>
+            </div>
+            <div class="context-menu-item" data-action="select-column">
+                <span>Select Column</span>
+            </div>
+        `;
+        document.body.appendChild(menu);
+        return menu;
+    }
+
+    function createCopyNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'copy-notification';
+        notification.textContent = 'Copied to clipboard!';
+        document.body.appendChild(notification);
+        return notification;
+    }
+
+    function showCopyNotification() {
+        if (copyNotification) {
+            copyNotification.classList.add('show');
+            setTimeout(() => {
+                copyNotification.classList.remove('show');
+            }, 1500);
+        }
+    }
+
+    function clearSelection() {
+        selectedCells.forEach(cell => {
+            cell.getElement().classList.remove('selected-cell');
+        });
+        selectedCells.clear();
+    }
+
+    function selectCell(cell, isMultiSelect = false) {
+        if (!isMultiSelect) {
+            clearSelection();
+        }
+        const element = cell.getElement();
+        element.classList.add('selected-cell');
+        selectedCells.add(cell);
+    }
+
+    function copyCellValue(cell) {
+        const value = cell.getValue();
+        const text = value !== null && value !== undefined ? String(value) : '';
+        navigator.clipboard.writeText(text).then(() => {
+            showCopyNotification();
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+        });
+    }
+
+    function copySelectedCells() {
+        if (selectedCells.size === 0) return;
+        
+        const values = Array.from(selectedCells).map(cell => {
+            const value = cell.getValue();
+            return value !== null && value !== undefined ? String(value) : '';
+        });
+        
+        const text = values.join('\n');
+        navigator.clipboard.writeText(text).then(() => {
+            showCopyNotification();
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+        });
+    }
+
+    function selectRow(cell) {
+        clearSelection();
+        const row = cell.getRow();
+        const cells = row.getCells();
+        cells.forEach(c => {
+            if (c.getColumn().getField()) { // Skip row number column
+                selectCell(c, true);
+            }
+        });
+    }
+
+    function selectColumn(cell) {
+        clearSelection();
+        const column = cell.getColumn();
+        const field = column.getField();
+        if (!field) return; // Skip row number column
+        
+        table.getRows().forEach(row => {
+            const cellInColumn = row.getCell(field);
+            if (cellInColumn) {
+                selectCell(cellInColumn, true);
+            }
+        });
+    }
+
+    function hideContextMenu() {
+        if (contextMenu) {
+            contextMenu.classList.remove('visible');
+        }
+    }
+
+    function showContextMenu(x, y, cell) {
+        if (!contextMenu) return;
+        
+        contextMenu.style.left = x + 'px';
+        contextMenu.style.top = y + 'px';
+        contextMenu.classList.add('visible');
+        
+        // Store the cell reference for context menu actions
+        contextMenu.dataset.cellId = cell.getRow().getIndex() + '_' + cell.getColumn().getField();
+        contextMenu.currentCell = cell;
+    }
+
     // Handle messages sent from the extension to the webview
     window.addEventListener('message', event => {
         const message = event.data; // The json data that the extension sent
@@ -124,6 +255,77 @@ function getFormatter(columnType) {
                                 maxInitialWidth: window.innerWidth * 0.4,
                             },
                             columns: columns
+                        });
+                        
+                        // Initialize context menu and copy notification
+                        if (!contextMenu) {
+                            contextMenu = createContextMenu();
+                            copyNotification = createCopyNotification();
+                            
+                            // Context menu event handlers
+                            contextMenu.addEventListener('click', (e) => {
+                                const item = e.target.closest('.context-menu-item');
+                                if (!item) return;
+                                
+                                const action = item.dataset.action;
+                                const cell = contextMenu.currentCell;
+                                
+                                if (!cell) return;
+                                
+                                switch(action) {
+                                    case 'copy':
+                                        copyCellValue(cell);
+                                        break;
+                                    case 'copy-all':
+                                        copySelectedCells();
+                                        break;
+                                    case 'select-row':
+                                        selectRow(cell);
+                                        break;
+                                    case 'select-column':
+                                        selectColumn(cell);
+                                        break;
+                                }
+                                
+                                hideContextMenu();
+                            });
+                            
+                            // Hide menu when clicking outside
+                            document.addEventListener('click', (e) => {
+                                if (!contextMenu.contains(e.target)) {
+                                    hideContextMenu();
+                                }
+                            });
+                        }
+                        
+                        // Cell click handler
+                        table.on("cellClick", function(e, cell) {
+                            // Skip row number column
+                            if (!cell.getColumn().getField()) return;
+                            
+                            const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
+                            selectCell(cell, isMultiSelect);
+                        });
+                        
+                        // Cell context menu handler
+                        table.on("cellContext", function(e, cell) {
+                            e.preventDefault();
+                            
+                            // Skip row number column
+                            if (!cell.getColumn().getField()) return;
+                            
+                            // Select the cell if not already selected
+                            if (!selectedCells.has(cell)) {
+                                selectCell(cell, false);
+                            }
+                            
+                            showContextMenu(e.pageX, e.pageY, cell);
+                        });
+                        
+                        // Double-click to copy
+                        table.on("cellDblClick", function(e, cell) {
+                            if (!cell.getColumn().getField()) return;
+                            copyCellValue(cell);
                         });
                         table.on("scrollVertical", function (top) {
                             const element = table.rowManager.element;
@@ -231,6 +433,34 @@ function getFormatter(columnType) {
         textarea.addEventListener("input", onInput);
         textarea.addEventListener("change", onChange);
         textarea.addEventListener("keydown", onKeyDown, true);
+        
+        // Global keyboard shortcuts for cell operations
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + C to copy selected cells (when not in textarea)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && document.activeElement !== textarea) {
+                if (selectedCells.size > 0) {
+                    e.preventDefault();
+                    copySelectedCells();
+                }
+            }
+            // Escape to clear selection
+            if (e.key === 'Escape') {
+                clearSelection();
+                hideContextMenu();
+            }
+            // Ctrl/Cmd + A to select all cells (when table has focus)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a' && document.activeElement !== textarea && table) {
+                e.preventDefault();
+                clearSelection();
+                table.getRows().forEach(row => {
+                    row.getCells().forEach(cell => {
+                        if (cell.getColumn().getField()) {
+                            selectCell(cell, true);
+                        }
+                    });
+                });
+            }
+        });
 
         // Load stored query (if any) and trigger its execution
         const state = vscode.getState();

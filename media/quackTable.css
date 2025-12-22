@@ -131,3 +131,90 @@ code-input pre {
     font-weight: bold;
     border-radius: 5px;
 }
+
+/* Cell Selection Styles */
+.tabulator-cell {
+    cursor: pointer;
+    user-select: text;
+    position: relative;
+}
+
+.tabulator-cell:hover {
+    background-color: color-mix(in srgb, var(--vscode-editor-foreground), transparent 85%) !important;
+    outline: 1px solid color-mix(in srgb, var(--vscode-editor-foreground), transparent 70%);
+}
+
+.tabulator-cell.selected-cell {
+    background-color: color-mix(in srgb, var(--vscode-focusBorder), transparent 70%) !important;
+    outline: 2px solid var(--vscode-focusBorder) !important;
+    outline-offset: -2px;
+}
+
+.tabulator-row-even .tabulator-cell.selected-cell {
+    background-color: color-mix(in srgb, var(--vscode-focusBorder), transparent 70%) !important;
+}
+
+/* Context Menu Styles */
+.cell-context-menu {
+    position: fixed;
+    background-color: var(--vscode-menu-background);
+    border: 1px solid var(--vscode-menu-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    padding: 4px 0;
+    z-index: 1000;
+    min-width: 150px;
+    border-radius: 4px;
+    display: none;
+}
+
+.cell-context-menu.visible {
+    display: block;
+}
+
+.context-menu-item {
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--vscode-menu-foreground);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.context-menu-item:hover {
+    background-color: var(--vscode-menu-selectionBackground);
+    color: var(--vscode-menu-selectionForeground);
+}
+
+.context-menu-item .shortcut {
+    margin-left: auto;
+    opacity: 0.6;
+    font-size: 11px;
+}
+
+.context-menu-separator {
+    height: 1px;
+    background-color: var(--vscode-menu-separatorBackground);
+    margin: 4px 0;
+}
+
+/* Copy notification */
+.copy-notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--vscode-notifications-background);
+    color: var(--vscode-notifications-foreground);
+    padding: 12px 24px;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+
+.copy-notification.show {
+    opacity: 1;
+}
