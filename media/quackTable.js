@@ -43,15 +43,27 @@ function getFormatter(columnType) {
     switch (columnType) {
         case "DATE":
             return {
-                formatter: "datetime",
-                formatterParams: {
-                    inputFormat: "iso",
-                    outputFormat: "yyyy-MM-dd",
-                    timezone: "utc", // this could be configurable
+                formatter: function(cell, formatterParams, onRendered) {
+                    const value = cell.getValue();
+                    if (value === null || value === undefined) {
+                        return '<span class="null-value">NULL</span>';
+                    }
+                    // Use datetime formatter for non-null values
+                    const date = luxon.DateTime.fromISO(value, { zone: 'utc' });
+                    return date.toFormat('yyyy-MM-dd');
                 },
             };
         default:
-            return {};
+            return {
+                formatter: function(cell, formatterParams, onRendered) {
+                    const value = cell.getValue();
+                    if (value === null || value === undefined) {
+                        return '<span class="null-value">NULL</span>';
+                    }
+                    // For other types, convert to string and preserve formatting
+                    return String(value).replace(/\n/g, '<br>');
+                },
+            };
     }
 }
 

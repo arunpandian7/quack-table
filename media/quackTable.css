@@ -218,3 +218,10 @@ code-input pre {
 .copy-notification.show {
     opacity: 1;
 }
+
+/* NULL value styling */
+.null-value {
+    color: color-mix(in srgb, var(--vscode-editor-foreground), transparent 50%);
+    font-style: italic;
+    font-weight: 500;
+}
