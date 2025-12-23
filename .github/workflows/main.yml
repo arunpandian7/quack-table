@@ -18,15 +18,10 @@ jobs:
       uses: actions/setup-node@v3.7.0
       with:
         node-version: 20.5.1
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: 8
     - name: Build extension
       run: |
-        pnpm install
-        pnpm install --global @vscode/vsce
-        ./package.sh
+        npm install
+        node build-multiplatform.js
     - name: Upload extension
       if: github.event_name != 'pull_request'
       uses: actions/upload-artifact@v4

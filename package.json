@@ -78,7 +78,7 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "rm -rf ./out; mkdir -p ./out/binding/; cp $(find node_modules -name 'duckdb.node' | head -1) ./out/binding/ 2>/dev/null || true; esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --external:nock --external:aws-sdk --external:mock-aws-s3 --external:duckdb --format=cjs --platform=node --minify",
+        "vscode:prepublish": "npm run compile && esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --external:nock --external:aws-sdk --external:mock-aws-s3 --external:duckdb --format=cjs --platform=node --minify",
         "compile": "tsc -p ./",
         "watch": "tsc -w -p ./",
         "lint": "eslint \"src/**/*.ts\""
@@ -88,16 +88,18 @@
         "@types/vscode": "^1.85.0",
         "@typescript-eslint/eslint-plugin": "^8.18.1",
         "@typescript-eslint/parser": "^8.18.1",
+        "@vscode/vsce": "^3.7.1",
         "esbuild": "^0.24.2",
         "eslint": "^9.17.0",
+        "node-pre-gyp": "^0.17.0",
         "typescript": "^5.7.2"
     },
     "dependencies": {
-        "duckdb": "^1.2.1"
+        "duckdb": "^1.4.3"
     },
-    "binary": {
-        "module_name": "duckdb",
-        "module_path": "./out/binding/",
-        "host": "https://duckdb-node.s3.amazonaws.com"
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "duckdb"
+        ]
     }
 }

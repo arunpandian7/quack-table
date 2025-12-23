@@ -5,3 +5,6 @@
 !README.md
 !icon.png
 !screenshot.png
+!node_modules/duckdb/**
+!node_modules/.pnpm/duckdb@*/node_modules/duckdb/lib/**
+!node_modules/.pnpm/duckdb@*/node_modules/duckdb/package.json
