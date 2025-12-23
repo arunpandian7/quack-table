@@ -12,16 +12,20 @@ jobs:
     name: Package Extension
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3.5.3
     - name: Setup Node.js environment
       uses: actions/setup-node@v3.7.0
       with:
         node-version: 20.5.1
-    - name: Checkout repo
-      uses: actions/checkout@v3.5.3
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
     - name: Build extension
       run: |
-        npm install
-        npm install --global @vscode/vsce
+        pnpm install
+        pnpm install --global @vscode/vsce
         ./package.sh
     - name: Upload extension
       if: github.event_name != 'pull_request'
