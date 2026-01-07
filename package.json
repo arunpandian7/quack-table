@@ -2,7 +2,7 @@
     "name": "quack-table",
     "displayName": "QuackTable - Structured Data Explorer",
     "description": "Visual explorer for Parquet, CSV, and JSON files with powerful SQL querying, schema inspection, and data statistics powered by DuckDB",
-    "version": "1.0.0",
+    "version": "1.0.4",
     "publisher": "arunpandian7",
     "author": "Arun Pandian R <arunpandian.srk@gmail.com>",
     "icon": "icon.png",
@@ -20,7 +20,9 @@
         "Visualization",
         "Other"
     ],
-    "activationEvents": [],
+    "activationEvents": [
+        "onCustomEditor:quackTable.explorer"
+    ],
     "main": "./out/extension.js",
     "contributes": {
         "configuration": {
@@ -78,7 +80,7 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile && esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --external:nock --external:aws-sdk --external:mock-aws-s3 --external:duckdb --format=cjs --platform=node --minify",
+        "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
         "watch": "tsc -w -p ./",
         "lint": "eslint \"src/**/*.ts\""
@@ -89,17 +91,10 @@
         "@typescript-eslint/eslint-plugin": "^8.18.1",
         "@typescript-eslint/parser": "^8.18.1",
         "@vscode/vsce": "^3.7.1",
-        "esbuild": "^0.24.2",
         "eslint": "^9.17.0",
-        "node-pre-gyp": "^0.17.0",
         "typescript": "^5.7.2"
     },
     "dependencies": {
         "duckdb": "^1.4.3"
-    },
-    "pnpm": {
-        "onlyBuiltDependencies": [
-            "duckdb"
-        ]
     }
 }

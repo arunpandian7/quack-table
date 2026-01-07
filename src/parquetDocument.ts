@@ -3,6 +3,7 @@ import { Disposable } from './dispose';
 import { getNonce } from './util';
 import { parse, extname } from "path"
 import * as duckdb from 'duckdb';
+import { outputChannel } from './extension';
 
 const CSV_EXTENSIONS = [".csv"];
 const PARQUET_EXTENSIONS = [".pq", ".parq", ".parquet"];
@@ -36,7 +37,16 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
     private constructor(uri: vscode.Uri) {
         super();
         this._uri = uri;
-        this._db = new duckdb.Database(':memory:');
+
+        outputChannel.appendLine(`Opening file: ${uri.fsPath}`);
+
+        try {
+            this._db = new duckdb.Database(':memory:');
+            outputChannel.appendLine('DuckDB in-memory database created');
+        } catch (error) {
+            outputChannel.appendLine(`ERROR: Failed to create DuckDB database: ${error}`);
+            throw error;
+        }
 
         const config = vscode.workspace.getConfiguration('quack-table');
         let tableName: string = config.get("tableName")!;
@@ -48,15 +58,26 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 
         if (CSV_EXTENSIONS.includes(fileExtension)) {
             query = `CREATE VIEW ${tableName} AS SELECT * FROM read_csv('${uri.fsPath}');`;
+            outputChannel.appendLine(`Loading CSV file with table name: ${tableName}`);
         } else if (PARQUET_EXTENSIONS.includes(fileExtension)) {
             query = `CREATE VIEW ${tableName} AS SELECT * FROM read_parquet('${uri.fsPath}');`;
+            outputChannel.appendLine(`Loading Parquet file with table name: ${tableName}`);
         } else {
             // If this error occurs, check that the trigger types in `package.json` are in sync
             // with the extension definition arrays at the top of this file.
-            throw new Error("Unsupported file type. Should not have opened with Quack Table.");
+            const errorMsg = "Unsupported file type. Should not have opened with Quack Table.";
+            outputChannel.appendLine(`ERROR: ${errorMsg} (${fileExtension})`);
+            throw new Error(errorMsg);
         }
 
-        this.db.exec(query);
+        try {
+            this.db.exec(query);
+            outputChannel.appendLine('View created successfully');
+        } catch (error) {
+            outputChannel.appendLine(`ERROR: Failed to create view: ${error}`);
+            outputChannel.appendLine(`Query: ${query}`);
+            throw error;
+        }
     }
 
     public get uri() { return this._uri; }
@@ -95,26 +116,36 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
     }
 
     runQuery(sql: string, limit: number, callback: (msg: IMessage) => void): void {
+        outputChannel.appendLine(`Executing query with limit ${limit}`);
+        outputChannel.appendLine(`SQL: ${sql}`);
+
         // Fetch resulting column names and types
         this.db.all(
             `DESCRIBE (${sql.replace(';', '')});`,
             (err, descRes) => {
                 if (err) {
+                    outputChannel.appendLine(`ERROR: Failed to describe query: ${err.message}`);
                     callback({ type: 'query', success: false, message: err.message });
                     return;
                 }
+
+                outputChannel.appendLine(`Query described successfully, ${descRes.length} columns`);
 
                 // Execute query
                 this.db.all(
                     this.formatSql(sql, limit, 0),
                     (err, res) => {
                         if (err) {
+                            outputChannel.appendLine(`ERROR: Query execution failed: ${err.message}`);
                             callback({ type: 'query', success: false, message: err.message });
                             return;
                         }
 
+                        outputChannel.appendLine(`Query executed successfully, ${res.length} rows returned`);
+
                         // Compute quick statistics
                         this.computeStats(sql, descRes, (stats) => {
+                            outputChannel.appendLine('Statistics computed successfully');
                             callback({ type: 'query', success: true, results: this.cleanResults(res), describe: descRes, statistics: stats });
                         });
                     }
@@ -131,8 +162,15 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 
         const statsQuery = `SELECT COUNT(*) AS total_rows, ${cols} FROM (${sql.replace(';', '')})`;
 
+        outputChannel.appendLine('Computing statistics...');
+
         this.db.all(statsQuery, (err, result) => {
             if (err || !result || result.length === 0) {
+                if (err) {
+                    outputChannel.appendLine(`WARNING: Statistics computation failed: ${err.message}`);
+                } else {
+                    outputChannel.appendLine('WARNING: No statistics results returned');
+                }
                 callback(null);
             } else {
                 // Convert BigInt values to numbers before sending
@@ -141,19 +179,24 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
                 for (const [key, value] of Object.entries(stats)) {
                     converted[key] = typeof value === 'bigint' ? Number(value) : value;
                 }
+                outputChannel.appendLine('Statistics computed and converted');
                 callback(converted);
             }
         });
     }
 
     fetchMore(sql: string, limit: number, offset: number, callback: (msg: IMessage) => void): void {
+        outputChannel.appendLine(`Fetching more results: limit=${limit}, offset=${offset}`);
+
         this.db.all(
             this.formatSql(sql, limit, offset),
             (err, res) => {
                 if (err) {
+                    outputChannel.appendLine(`ERROR: Failed to fetch more results: ${err.message}`);
                     callback({ type: 'more', success: false, message: err.message });
                     return;
                 }
+                outputChannel.appendLine(`Fetched ${res.length} more rows`);
                 callback({ type: 'more', success: true, results: this.cleanResults(res) });
             }
         );
@@ -182,8 +225,15 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
         openContext: { backupId?: string },
         _token: vscode.CancellationToken
     ): Promise<ParquetDocument> {
-        const document: ParquetDocument = await ParquetDocument.create(uri, openContext.backupId);
-        return document;
+        outputChannel.appendLine(`Opening custom document: ${uri.fsPath}`);
+        try {
+            const document: ParquetDocument = await ParquetDocument.create(uri, openContext.backupId);
+            outputChannel.appendLine('Custom document created successfully');
+            return document;
+        } catch (error) {
+            outputChannel.appendLine(`ERROR: Failed to open custom document: ${error}`);
+            throw error;
+        }
     }
 
     async resolveCustomEditor(
@@ -191,12 +241,15 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
         webviewPanel: vscode.WebviewPanel,
         _token: vscode.CancellationToken
     ): Promise<void> {
+        outputChannel.appendLine('Resolving custom editor...');
+
         // Setup initial content for the webview
         webviewPanel.webview.options = {
             enableScripts: true,
         };
 
         webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview, document.uri);
+        outputChannel.appendLine('Webview HTML set');
 
         webviewPanel.webview.onDidReceiveMessage(e => this.onMessage(document, webviewPanel, e));
 
@@ -206,6 +259,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
             type: 'config',
             autoQuery: config.get('autoQuery')!
         });
+        outputChannel.appendLine('Custom editor resolved successfully');
     }
 
 
