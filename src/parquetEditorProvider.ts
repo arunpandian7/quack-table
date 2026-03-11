@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as duckdb from 'duckdb';
 import { getNonce } from './util';
 import { outputChannel } from './extension';
+import { ActiveDocumentTracker } from './activeDocumentTracker';
 
 function sanitizeTableName(name: string): string {
   const s = name.replace(/[^a-zA-Z0-9_]/g, '_');
@@ -24,6 +25,11 @@ class ParquetDocument implements vscode.CustomDocument {
   readonly uri: vscode.Uri;
   readonly tableName: string;
   private _db: duckdb.Database;
+
+  // Mutable state kept in sync for the chat participant
+  schema: ColumnInfo[] = [];
+  nullPercents: Record<string, number> = {};
+  currentSql: string = '';
 
   constructor(uri: vscode.Uri, tableName: string) {
     this.uri = uri;
@@ -202,6 +208,27 @@ export class ParquetEditorProvider implements vscode.CustomReadonlyEditorProvide
     };
     webviewPanel.webview.html = this._getHtml(webviewPanel.webview, document);
     webviewPanel.webview.onDidReceiveMessage(msg => this._handleMessage(msg, document, webviewPanel));
+
+    const updateTracker = () => {
+      ActiveDocumentTracker.set({
+        tableName: document.tableName,
+        filePath: document.uri.fsPath,
+        schema: document.schema,
+        nullPercents: document.nullPercents,
+        currentSql: document.currentSql,
+      });
+    };
+
+    webviewPanel.onDidChangeViewState(e => {
+      if (e.webviewPanel.active) updateTracker();
+    });
+
+    webviewPanel.onDidDispose(() => {
+      const ctx = ActiveDocumentTracker.get();
+      if (ctx?.filePath === document.uri.fsPath) ActiveDocumentTracker.set(null);
+    });
+
+    if (webviewPanel.active) updateTracker();
   }
 
   private async _handleMessage(message: any, document: ParquetDocument, panel: vscode.WebviewPanel) {
@@ -212,12 +239,15 @@ export class ParquetEditorProvider implements vscode.CustomReadonlyEditorProvide
         try {
           const schema = await document.getSchema();
           const nullPercents = await document.getNullPercents(schema).catch(() => ({}));
+          document.schema = schema;
+          document.nullPercents = nullPercents;
+          document.currentSql = `SELECT * FROM "${document.tableName}"`;
           post({
             type: 'init',
             tableName: document.tableName,
             schema,
             nullPercents,
-            defaultQuery: `SELECT * FROM "${document.tableName}"`,
+            defaultQuery: document.currentSql,
           });
         } catch (err: any) {
           post({ type: 'init', tableName: document.tableName, schema: [], nullPercents: {}, defaultQuery: `SELECT * FROM "${document.tableName}"`, error: err.message });
@@ -225,6 +255,7 @@ export class ParquetEditorProvider implements vscode.CustomReadonlyEditorProvide
         break;
       }
       case 'query': {
+        document.currentSql = message.sql;
         const startTime = Date.now();
         try {
           const result = await document.runQuery(message.sql, message.limit || 500, 0);

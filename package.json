@@ -13,7 +13,7 @@
         "url": "https://github.com/arun/quack-table"
     },
     "engines": {
-        "vscode": "^1.85.0"
+        "vscode": "^1.95.0"
     },
     "categories": [
         "Data Science",
@@ -21,10 +21,34 @@
         "Other"
     ],
     "activationEvents": [
-        "onCustomEditor:quackTable.dataExplorer"
+        "onCustomEditor:quackTable.dataExplorer",
+        "onChatParticipant:quacktable"
     ],
     "main": "./out/extension.js",
     "contributes": {
+        "chatParticipants": [
+            {
+                "id": "quacktable",
+                "name": "quacktable",
+                "fullName": "QuackTable",
+                "description": "Ask questions about your data file, get SQL suggestions, explanations and fixes — powered by your schema and current query.",
+                "isSticky": true,
+                "commands": [
+                    {
+                        "name": "suggest",
+                        "description": "Suggest 5 useful queries for this dataset"
+                    },
+                    {
+                        "name": "explain",
+                        "description": "Explain what the current query does"
+                    },
+                    {
+                        "name": "fix",
+                        "description": "Fix or improve the current query"
+                    }
+                ]
+            }
+        ],
         "customEditors": [
             {
                 "viewType": "quackTable.dataExplorer",
