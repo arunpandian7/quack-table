@@ -21,63 +21,36 @@
         "Other"
     ],
     "activationEvents": [
-        "onCustomEditor:quackTable.explorer"
+        "onCustomEditor:quackTable.dataExplorer"
     ],
     "main": "./out/extension.js",
     "contributes": {
-        "configuration": {
-            "title": "Quack Table",
-            "properties": {
-                "quack-table.defaultQuery": {
-                    "type": "string",
-                    "editPresentation": "multilineText",
-                    "default": "SELECT * FROM ${tableName}",
-                    "markdownDescription": "Use `${tableName}` to include the table name of the Parquet file."
-                },
-                "quack-table.tableName": {
-                    "type": "string",
-                    "default": "data",
-                    "markdownDescription": "SQL table name associated with the Parquet file. May be overridden by `#quack-table.useFileNameAsTableName#`."
-                },
-                "quack-table.useFileNameAsTableName": {
-                    "type": "boolean",
-                    "default": false,
-                    "markdownDescription": "Whether the file name is used as the SQL table name of the Parquet file. Overrides `#quack-table.tableName#`."
-                },
-                "quack-table.chunkSize": {
-                    "type": "integer",
-                    "default": 100,
-                    "minimum": 30,
-                    "markdownDescription": "Number of query results to fetch per request."
-                },
-                "quack-table.autoQuery": {
-                    "type": "boolean",
-                    "default": false,
-                    "markdownDescription": "Automatically dispatch queries as the input changes. If false, queries are only dispatched on Ctrl + Enter."
-                }
-            }
-        },
         "customEditors": [
             {
-                "viewType": "quackTable.explorer",
-                "displayName": "Quack Table",
+                "viewType": "quackTable.dataExplorer",
+                "displayName": "QuackTable",
                 "selector": [
-                    {
-                        "filenamePattern": "*.parquet"
-                    },
-                    {
-                        "filenamePattern": "*.parq"
-                    },
-                    {
-                        "filenamePattern": "*.pq"
-                    },
-                    {
-                        "filenamePattern": "*.csv"
-                    }
+                    { "filenamePattern": "*.parquet" },
+                    { "filenamePattern": "*.parq" },
+                    { "filenamePattern": "*.pq" },
+                    { "filenamePattern": "*.csv" },
+                    { "filenamePattern": "*.json" },
+                    { "filenamePattern": "*.jsonl" }
                 ],
                 "priority": "default"
             }
-        ]
+        ],
+        "configuration": {
+            "title": "QuackTable",
+            "properties": {
+                "quack-table.chunkSize": {
+                    "type": "integer",
+                    "default": 500,
+                    "minimum": 50,
+                    "markdownDescription": "Number of rows fetched per request when paginating results."
+                }
+            }
+        }
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
@@ -91,10 +64,10 @@
         "@typescript-eslint/eslint-plugin": "^8.18.1",
         "@typescript-eslint/parser": "^8.18.1",
         "@vscode/vsce": "^3.7.1",
-        "eslint": "^9.17.0",
         "typescript": "^5.7.2"
     },
     "dependencies": {
-        "duckdb": "^1.4.3"
+        "duckdb": "^1.4.3",
+        "monaco-editor": "^0.52.0"
     }
 }
