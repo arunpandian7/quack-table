@@ -4,6 +4,8 @@ export interface ActiveContext {
   schema: Array<{ name: string; type: string }>;
   nullPercents: Record<string, number>;
   currentSql: string;
+  sampleColumns: string[];
+  sampleRows: any[][];
 }
 
 /** Singleton that holds the context of whichever QuackTable editor is currently focused. */

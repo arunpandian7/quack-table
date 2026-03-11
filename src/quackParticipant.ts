@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { ActiveDocumentTracker } from './activeDocumentTracker';
+import { outputChannel } from './extension';
 
 export function registerChatParticipant(context: vscode.ExtensionContext): void {
   const participant = vscode.chat.createChatParticipant('quacktable', handler);
@@ -25,6 +26,8 @@ async function handler(
   }
 
   const models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
+  outputChannel.appendLine(`QuackTable chat: found ${models.length} model(s): ${models.map(m => m.id).join(', ')}`);
+
   if (!models.length) {
     stream.markdown(
       'GitHub Copilot is not available. ' +
@@ -34,14 +37,18 @@ async function handler(
   }
 
   const messages = buildMessages(request, chatContext, ctx);
+  outputChannel.appendLine(`QuackTable chat: sending ${messages.length} message(s) to ${models[0].id}`);
 
   try {
     stream.progress('Thinking…');
     const response = await models[0].sendRequest(messages, {}, token);
-    for await (const chunk of response.stream) {
-      stream.markdown(chunk as string);
+    // response.text is an async iterable of plain strings (text parts only)
+    for await (const text of response.text) {
+      stream.markdown(text);
     }
+    outputChannel.appendLine('QuackTable chat: response complete');
   } catch (err: any) {
+    outputChannel.appendLine(`QuackTable chat error: ${err?.message ?? err}`);
     if (err?.code === vscode.LanguageModelError.Blocked().code) {
       stream.markdown('The request was blocked by the content filter.');
     } else {
@@ -83,13 +90,22 @@ function buildMessages(
       'Show the corrected query and briefly explain what was wrong.';
   }
 
+  let sampleRowsText = '';
+  if (ctx!.sampleColumns.length > 0 && ctx!.sampleRows.length > 0) {
+    const header = '| ' + ctx!.sampleColumns.join(' | ') + ' |';
+    const sep = '| ' + ctx!.sampleColumns.map(() => '---').join(' | ') + ' |';
+    const rows = ctx!.sampleRows.map(row => '| ' + row.map(v => String(v ?? '')).join(' | ') + ' |').join('\n');
+    sampleRowsText = `\nSample rows (up to 5):\n${header}\n${sep}\n${rows}\n`;
+  }
+
   const systemPrompt =
     `You are a DuckDB SQL expert helping the user analyse a data file in QuackTable (a VS Code extension).\n\n` +
     `File: ${fileName}\n` +
     `Table alias: "${ctx!.tableName}"\n\n` +
     `Schema:\n${schemaText}\n\n` +
-    `Current SQL:\n\`\`\`sql\n${ctx!.currentSql}\n\`\`\`\n\n` +
-    `Rules:\n` +
+    `Current SQL:\n\`\`\`sql\n${ctx!.currentSql}\n\`\`\`\n` +
+    sampleRowsText +
+    `\nRules:\n` +
     `- Use DuckDB SQL syntax (not standard SQL where they differ).\n` +
     `- Always quote the table name with double-quotes: \`"${ctx!.tableName}"\`.\n` +
     `- Wrap every SQL snippet in a \`\`\`sql code block.\n` +

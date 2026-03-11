@@ -30,6 +30,8 @@ class ParquetDocument implements vscode.CustomDocument {
   schema: ColumnInfo[] = [];
   nullPercents: Record<string, number> = {};
   currentSql: string = '';
+  sampleColumns: string[] = [];
+  sampleRows: any[][] = [];
 
   constructor(uri: vscode.Uri, tableName: string) {
     this.uri = uri;
@@ -207,7 +209,7 @@ export class ParquetEditorProvider implements vscode.CustomReadonlyEditorProvide
       ],
     };
     webviewPanel.webview.html = this._getHtml(webviewPanel.webview, document);
-    webviewPanel.webview.onDidReceiveMessage(msg => this._handleMessage(msg, document, webviewPanel));
+    webviewPanel.webview.onDidReceiveMessage(msg => this._handleMessage(msg, document, webviewPanel, updateTracker));
 
     const updateTracker = () => {
       ActiveDocumentTracker.set({
@@ -216,6 +218,8 @@ export class ParquetEditorProvider implements vscode.CustomReadonlyEditorProvide
         schema: document.schema,
         nullPercents: document.nullPercents,
         currentSql: document.currentSql,
+        sampleColumns: document.sampleColumns,
+        sampleRows: document.sampleRows,
       });
     };
 
@@ -231,7 +235,7 @@ export class ParquetEditorProvider implements vscode.CustomReadonlyEditorProvide
     if (webviewPanel.active) updateTracker();
   }
 
-  private async _handleMessage(message: any, document: ParquetDocument, panel: vscode.WebviewPanel) {
+  private async _handleMessage(message: any, document: ParquetDocument, panel: vscode.WebviewPanel, updateTracker: () => void) {
     const post = (msg: any) => panel.webview.postMessage(msg);
 
     switch (message.type) {
@@ -242,6 +246,7 @@ export class ParquetEditorProvider implements vscode.CustomReadonlyEditorProvide
           document.schema = schema;
           document.nullPercents = nullPercents;
           document.currentSql = `SELECT * FROM "${document.tableName}"`;
+          updateTracker();
           post({
             type: 'init',
             tableName: document.tableName,
@@ -260,6 +265,11 @@ export class ParquetEditorProvider implements vscode.CustomReadonlyEditorProvide
         try {
           const result = await document.runQuery(message.sql, message.limit || 500, 0);
           const totalRows = result.error ? -1 : await document.countQuery(message.sql);
+          if (!result.error) {
+            document.sampleColumns = result.columns;
+            document.sampleRows = result.rows.slice(0, 5);
+            updateTracker();
+          }
           post({ type: 'queryResult', ...result, totalRows, executionMs: Date.now() - startTime });
         } catch (err: any) {
           post({ type: 'queryResult', columns: [], rows: [], totalRows: 0, executionMs: Date.now() - startTime, error: err.message });
