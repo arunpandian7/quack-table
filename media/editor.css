@@ -227,29 +227,64 @@ body {
 
 /* ── Data grid ───────────────────────────────────────── */
 
-.grid {
-  border-collapse: separate;
-  border-spacing: 0;
+.grid-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: max-content;
   font-size: 12px;
+  padding-right: 80px;
 }
 
-.grid thead th.grid-th {
+/* Header and every data row share the same grid template via CSS custom prop */
+.grid-header,
+.grid-row {
+  display: grid;
+  grid-template-columns: var(--col-tpl);
+}
+
+.grid-header {
   position: sticky;
   top: 0;
   z-index: 2;
   background: var(--vscode-editorGroupHeader-tabsBackground);
+  border-bottom: 2px solid var(--vscode-panel-border);
+}
+
+.grid-th {
+  position: relative;
   font-family: var(--vscode-font-family);
   font-size: 11px;
   font-weight: 600;
-  text-align: left;
   white-space: nowrap;
-  padding: 5px 10px;
-  border-bottom: 2px solid var(--vscode-panel-border);
+  overflow: hidden;
   border-right: 1px solid var(--vscode-panel-border);
   user-select: none;
 }
 
-.grid tbody tr:hover .grid-td {
+.th-label {
+  display: block;
+  padding: 5px 16px 5px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+.col-resize-handle:hover,
+.col-resize-handle:active {
+  background: var(--vscode-focusBorder);
+}
+
+.grid-row:hover .grid-td {
   background: var(--vscode-list-hoverBackground);
 }
 
@@ -259,7 +294,6 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 400px;
   border-bottom: 1px solid var(--vscode-list-inactiveSelectionBackground, rgba(128,128,128,0.08));
   border-right: 1px solid var(--vscode-panel-border);
   cursor: default;

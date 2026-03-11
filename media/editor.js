@@ -207,6 +207,7 @@
     totalRows = -1;
     loadedRows = 0;
     selectedCell = null;
+    colWidths = [];
     setStatus('Running…');
     setResultsHtml('<div class="placeholder">Running query…</div>');
     vscode.postMessage({ type: 'query', sql, limit: 500 });
@@ -290,16 +291,93 @@
       }).join('');
   }
 
+  let colWidths = [];
+
+  function colTemplate() {
+    return colWidths.map(w => w + 'px').join(' ');
+  }
+
   function renderTable(columns, rows) {
     if (!columns.length) {
       setResultsHtml('<div class="placeholder">Query returned no rows</div>');
       return;
     }
-    const thHtml = columns.map(c => `<th class="grid-th">${esc(String(c))}</th>`).join('');
+
+    const thHtml = columns.map((c, i) =>
+      `<div class="grid-th" data-col="${i}">
+        <span class="th-label">${esc(String(c))}</span>
+        <div class="col-resize-handle" data-col="${i}"></div>
+      </div>`
+    ).join('');
+
+    // Start with 'auto' so the browser sizes each column to its content
+    const initTpl = columns.map(() => 'auto').join(' ');
     setResultsHtml(
-      `<table class="grid"><thead><tr>${thHtml}</tr></thead><tbody id="grid-body"></tbody></table>`
+      `<div class="grid-wrap" id="grid-wrap" style="--col-tpl:${initTpl}">
+         <div class="grid-header" id="grid-header">${thHtml}</div>
+         <div class="grid-body" id="grid-body"></div>
+       </div>`
     );
+
     appendRows(rows);
+
+    // After the browser has painted with auto-sizing, measure actual widths
+    // and lock them so resize starts from the content-driven baseline.
+    requestAnimationFrame(() => {
+      const n = columns.length;
+      const widths = new Array(n).fill(80);
+
+      // Header label widths (scrollWidth includes the element's own padding)
+      document.querySelectorAll('#grid-header .th-label').forEach((label, i) => {
+        if (i < n) widths[i] = Math.max(widths[i], label.scrollWidth);
+      });
+
+      // Data cell widths — sample the first 100 rows for performance
+      const bodyRows = Array.from(
+        document.querySelectorAll('#grid-body .grid-row')
+      ).slice(0, 100);
+      bodyRows.forEach(row => {
+        Array.from(row.children).forEach((td, j) => {
+          if (j < n) widths[j] = Math.max(widths[j], td.scrollWidth);
+        });
+      });
+
+      colWidths = widths.map(w => Math.min(w, 500));
+      const wrap = document.getElementById('grid-wrap');
+      if (wrap) wrap.style.setProperty('--col-tpl', colTemplate());
+
+      setupColResize();
+    });
+  }
+
+  function setupColResize() {
+    document.querySelectorAll('.col-resize-handle').forEach(handle => {
+      handle.addEventListener('mousedown', (e) => {
+        const colIdx = parseInt(handle.dataset.col);
+        const startX = e.clientX;
+        const startWidth = colWidths[colIdx];
+
+        document.body.style.cursor = 'col-resize';
+        e.preventDefault();
+        e.stopPropagation();
+
+        function onMove(e) {
+          const newWidth = Math.max(60, startWidth + (e.clientX - startX));
+          colWidths[colIdx] = newWidth;
+          const wrap = document.getElementById('grid-wrap');
+          if (wrap) wrap.style.setProperty('--col-tpl', colTemplate());
+        }
+
+        function onUp() {
+          document.body.style.cursor = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    });
   }
 
   function appendRows(rows) {
@@ -308,9 +386,10 @@
     const frag = document.createDocumentFragment();
     const startIdx = loadedRows;
     rows.forEach((row, i) => {
-      const tr = document.createElement('tr');
+      const tr = document.createElement('div');
+      tr.className = 'grid-row';
       row.forEach((cell, j) => {
-        const td = document.createElement('td');
+        const td = document.createElement('div');
         const isNull = cell === null || cell === undefined;
         td.className = 'grid-td' + (isNull ? ' null' : '');
         td.textContent = isNull ? 'null' : formatCell(cell);
