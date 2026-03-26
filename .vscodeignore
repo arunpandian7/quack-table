@@ -6,6 +6,7 @@
 **/*.map
 **/tsconfig.json
 **/node_modules/**
+!out/**
 !node_modules/duckdb/**
 !node_modules/monaco-editor/min/**
 !node_modules/@mapbox/**
