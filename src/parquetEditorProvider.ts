@@ -271,24 +271,31 @@ export class ParquetEditorProvider implements vscode.CustomReadonlyEditorProvide
       }
       case 'query': {
         document.currentSql = message.sql;
+        const queryId = message.queryId;
         const startTime = Date.now();
         try {
           const result = await document.runQuery(message.sql, message.limit || 500, 0);
-          const totalRows = result.error ? -1 : await document.countQuery(message.sql);
           if (!result.error) {
             document.sampleColumns = result.columns;
             document.sampleRows = result.rows.slice(0, 5);
             updateTracker();
           }
-          post({ type: 'queryResult', ...result, totalRows, executionMs: Date.now() - startTime });
+          post({ type: 'queryResult', queryId, ...result, executionMs: Date.now() - startTime });
+          if (!result.error) {
+            document.countQuery(message.sql).then(
+              (totalRows) => post({ type: 'rowCount', queryId, totalRows }),
+              () => post({ type: 'rowCount', queryId, totalRows: -1 }),
+            ).then(undefined, () => { /* webview disposed mid-count */ });
+          }
         } catch (err: any) {
-          post({ type: 'queryResult', columns: [], rows: [], totalRows: 0, executionMs: Date.now() - startTime, error: err.message });
+          post({ type: 'queryResult', queryId, columns: [], rows: [], executionMs: Date.now() - startTime, error: err.message });
         }
         break;
       }
       case 'fetchMore': {
+        const queryId = message.queryId;
         const result = await document.runQuery(message.sql, message.limit || 500, message.offset || 0);
-        post({ type: 'moreRows', rows: result.rows });
+        post({ type: 'moreRows', queryId, rows: result.rows });
         break;
       }
       case 'saveAsCsv': {

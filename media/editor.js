@@ -4,6 +4,8 @@
 
   const vscode = acquireVsCodeApi();
 
+  const PAGE = 500;
+
   // State
   let schema = [];
   let nullPercents = {};
@@ -14,6 +16,10 @@
   let isFetching = false;
   let monacoEditor = null;
   let selectedCell = null; // { rowIdx, colIdx, value }
+  let latestQueryId = 0;
+  let lastExecutionMs = null;
+  let lastFetchWasFull = false;
+  let countPending = false;
 
   require(['vs/editor/editor.main'], function (monaco) {
     buildLayout();
@@ -208,19 +214,24 @@
     loadedRows = 0;
     selectedCell = null;
     colWidths = [];
+    lastExecutionMs = null;
+    lastFetchWasFull = false;
+    isFetching = false;
+    countPending = false;
+    latestQueryId += 1;
     setStatus('Running…');
     setResultsHtml('<div class="placeholder">Running query…</div>');
-    vscode.postMessage({ type: 'query', sql, limit: 500 });
+    vscode.postMessage({ type: 'query', sql, limit: PAGE, queryId: latestQueryId });
   }
 
   function onScroll() {
-    if (isFetching || totalRows < 0) return;
+    if (isFetching) return;
+    const hasMore = totalRows >= 0 ? loadedRows < totalRows : lastFetchWasFull;
+    if (!hasMore) return;
     const el = document.getElementById('results-scroll');
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) {
-      if (loadedRows < totalRows) {
-        isFetching = true;
-        vscode.postMessage({ type: 'fetchMore', sql: currentSql, offset: loadedRows, limit: 500 });
-      }
+      isFetching = true;
+      vscode.postMessage({ type: 'fetchMore', sql: currentSql, offset: loadedRows, limit: PAGE, queryId: latestQueryId });
     }
   }
 
@@ -246,22 +257,44 @@
         break;
       }
       case 'queryResult': {
-        loadedRows = (msg.rows || []).length;
-        totalRows = msg.totalRows ?? -1;
+        if (msg.queryId !== latestQueryId) break;
+        const rows = msg.rows || [];
+        loadedRows = rows.length;
+        lastExecutionMs = msg.executionMs ?? null;
+        lastFetchWasFull = rows.length === PAGE;
         if (msg.error) {
+          totalRows = -1;
+          countPending = false;
           showError(msg.error);
           setStatus('Error');
         } else {
-          renderTable(msg.columns, msg.rows);
-          const rowLabel = totalRows >= 0 ? `${loadedRows} / ${totalRows} rows` : `${loadedRows} rows`;
-          setStatus(`${rowLabel}${msg.executionMs != null ? ' · ' + msg.executionMs + ' ms' : ''}`);
+          renderTable(msg.columns, rows);
+          if (rows.length < PAGE) {
+            totalRows = loadedRows;
+            countPending = false;
+          } else {
+            totalRows = -1;
+            countPending = true;
+          }
+          setStatus(buildStatus());
         }
         break;
       }
+      case 'rowCount': {
+        if (msg.queryId !== latestQueryId) break;
+        totalRows = typeof msg.totalRows === 'number' ? msg.totalRows : -1;
+        countPending = false;
+        setStatus(buildStatus());
+        break;
+      }
       case 'moreRows': {
-        appendRows(msg.rows || []);
-        loadedRows += (msg.rows || []).length;
+        if (msg.queryId !== latestQueryId) break;
+        const rows = msg.rows || [];
+        appendRows(rows);
+        loadedRows += rows.length;
+        lastFetchWasFull = rows.length === PAGE;
         isFetching = false;
+        setStatus(buildStatus());
         break;
       }
     }
@@ -426,6 +459,20 @@
   function setStatus(text) {
     const el = document.getElementById('status');
     if (el) el.textContent = text;
+  }
+
+  function buildStatus() {
+    let rowLabel;
+    if (totalRows >= 0) {
+      rowLabel = loadedRows === totalRows
+        ? `${totalRows} rows`
+        : `${loadedRows} / ${totalRows} rows`;
+    } else if (countPending) {
+      rowLabel = `${loadedRows}+ rows · counting…`;
+    } else {
+      rowLabel = `${loadedRows} rows`;
+    }
+    return lastExecutionMs != null ? `${rowLabel} · ${lastExecutionMs} ms` : rowLabel;
   }
 
   function formatCell(value) {
