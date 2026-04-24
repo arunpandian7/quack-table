@@ -41,11 +41,13 @@ class ParquetDocument implements vscode.CustomDocument {
 
   async initialize(): Promise<void> {
     const filePath = this.uri.fsPath.replace(/\\/g, '/').replace(/'/g, "''");
-    const ext = path.extname(this.uri.fsPath).toLowerCase();
+    const basename = path.basename(this.uri.fsPath).toLowerCase();
     let readFn: string;
-    if (ext === '.csv') {
+    if (basename.endsWith('.tsv.gz') || basename.endsWith('.tsv')) {
+      readFn = `read_csv_auto('${filePath}', delim='\t')`;
+    } else if (basename.endsWith('.csv.gz') || basename.endsWith('.csv')) {
       readFn = `read_csv_auto('${filePath}')`;
-    } else if (ext === '.json' || ext === '.jsonl') {
+    } else if (basename.endsWith('.json') || basename.endsWith('.jsonl')) {
       readFn = `read_json_auto('${filePath}')`;
     } else {
       readFn = `read_parquet('${filePath}')`;
@@ -155,8 +157,16 @@ export class ParquetEditorProvider implements vscode.CustomReadonlyEditorProvide
     return doc;
   }
 
+  private _stemName(uri: vscode.Uri): string {
+    const base = path.basename(uri.fsPath);
+    for (const ext of ['.csv.gz', '.tsv.gz']) {
+      if (base.toLowerCase().endsWith(ext)) return base.slice(0, -ext.length);
+    }
+    return path.parse(base).name;
+  }
+
   private async _pickAlias(uri: vscode.Uri): Promise<string> {
-    const fileName = sanitizeTableName(path.parse(uri.fsPath).name);
+    const fileName = sanitizeTableName(this._stemName(uri));
     const dirName = sanitizeTableName(path.basename(path.dirname(uri.fsPath)));
     const baseName = path.basename(uri.fsPath);
 
